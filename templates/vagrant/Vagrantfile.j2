@@ -1,0 +1,50 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile for hbserver host
+
+hostname = "{{ hostname }}"
+
+Vagrant.configure("2") do |config|
+
+  # Setting main params
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.memory = "4096"
+    vb.name = hostname
+  end
+
+  config.vm.box = "ubuntu/focal64"
+  config.vm.hostname = hostname
+
+  # Adding SSH keys from host
+
+  config.vm.provision "shell" do |s|
+    ssh_pub_key = File.readlines("#{Dir.home}/.ssh/ansible_rsa.pub").first.strip
+    s.inline = <<-SHELL
+      echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+      echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+    SHELL
+  end
+
+  # Syncing folders from host to vm
+
+  config.vm.synced_folder "./vm", "/root/vm"
+  config.vm.synced_folder "./.vscode-server", "/root/.vscode-server"
+  
+  # Configuring network interfaces
+
+  config.vm.network "public_network", bridge: "enp7s0"
+
+  config.vm.provision "docker" do |d|
+    d.pull_images "ubuntu"
+  end
+
+  # Initialize packages and setting up repos
+  config.vm.provision :shell, path: "init.sh"
+  
+end
